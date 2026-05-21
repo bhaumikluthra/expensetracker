@@ -15,7 +15,7 @@ import (
 	"personal-expense-tracker/internal/service"
 	"personal-expense-tracker/pkg/database"
 
-	// NEW: Import your Kafka and Worker packages
+	"personal-expense-tracker/internal/infrastructure/gemini"
 	"personal-expense-tracker/internal/infrastructure/kafka"
 	"personal-expense-tracker/internal/worker"
 )
@@ -29,9 +29,6 @@ func main() {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
 
-	// ==========================================
-	// 🚀 KAFKA INITIALIZATION
-	// ==========================================
 	brokerURL := "localhost:9092"
 	topic := "expense_imports"
 
@@ -58,13 +55,17 @@ func main() {
 	// UPDATED: Pass the kafkaProducer into your Expense Handler so it can drop messages into the queue
 	expenseHandler := handler.NewExpenseHandler(expenseService, kafkaProducer)
 
+	geminiClient := gemini.NewClient()
+	csvImportService := service.NewCSVImportService(geminiClient, expenseService, categoryService)
+	importHandler := handler.NewImportHandler(csvImportService)
+
 	dashboardService := service.NewDashboardService(db, expenseRepo)
 	dashboardHandler := handler.NewDashboardHandler(dashboardService)
 
 	router := gin.Default()
 
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173", "http://localhost:3000"},
+		AllowOrigins:     []string{"http://localhost:5173", "http://localhost:3000", "http://3.26.43.204:5173"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -84,7 +85,6 @@ func main() {
 		}
 
 		protected := api.Group("/")
-		// Ensure your AuthMiddleware is configured with your secret key!
 		protected.Use(middleware.AuthMiddleware())
 		{
 			protected.POST("/categories", categoryHandler.CreateCategory)
@@ -93,6 +93,7 @@ func main() {
 			protected.DELETE("/categories/:id", categoryHandler.DeleteCategory)
 
 			protected.POST("/expenses", expenseHandler.CreateExpense) // Standard synchronous save
+			protected.POST("/expenses/import-csv", importHandler.ImportCSV)
 			protected.GET("/expenses", expenseHandler.GetAllExpenses)
 			protected.DELETE("/expenses", expenseHandler.DeleteAllExpenses)
 

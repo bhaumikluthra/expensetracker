@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getExpenses } from '../api/client';
 import { Trophy, Calendar, CalendarDays, CreditCard, Sparkles } from 'lucide-react';
+import { formatCurrency, safeNumber } from '../utils/number';
 
 export default function Insights() {
     const [loading, setLoading] = useState(true);
@@ -10,11 +11,7 @@ export default function Insights() {
         highestYear: { amount: 0, year: "" }
     });
 
-    useEffect(() => {
-        fetchInsights();
-    }, []);
-
-    const fetchInsights = async () => {
+    async function fetchInsights() {
         setLoading(true);
         try {
             const response = await getExpenses();
@@ -35,20 +32,18 @@ export default function Insights() {
 
             expenses.forEach(exp => {
                 const dateObj = new Date(exp.date);
-                const dayKey = dateObj.toISOString().split('T')[0]; // "YYYY-MM-DD"
-                const yearKey = dateObj.getFullYear().toString();   // "YYYY"
+                const dayKey = dateObj.toISOString().split('T')[0];
+                const yearKey = dateObj.getFullYear().toString();
 
                 dailyTotals[dayKey] = (dailyTotals[dayKey] || 0) + exp.amount;
                 yearlyTotals[yearKey] = (yearlyTotals[yearKey] || 0) + exp.amount;
             });
 
-            // Find Max Day
             const highestDay = Object.entries(dailyTotals).reduce(
                 (max, [date, amount]) => amount > max.amount ? { date, amount } : max,
                 { date: "", amount: 0 }
             );
 
-            // Find Max Year
             const highestYear = Object.entries(yearlyTotals).reduce(
                 (max, [year, amount]) => amount > max.amount ? { year, amount } : max,
                 { year: "", amount: 0 }
@@ -60,11 +55,13 @@ export default function Insights() {
         } finally {
             setLoading(false);
         }
-    };
+    }
 
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount);
-    };
+    /* eslint-disable react-hooks/set-state-in-effect */
+    useEffect(() => {
+        fetchInsights();
+    }, []);
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     const formatDate = (dateString) => {
         if (!dateString) return "N/A";

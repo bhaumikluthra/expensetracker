@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getExpenses, deleteExpense, deleteAllExpenses, updateExpense, getCategories } from '../api/client';
-import { History as HistoryIcon, Calendar, Trash2, Pencil, Search, AlertOctagon, Save, X } from 'lucide-react';
+import { History as HistoryIcon, Trash2, Pencil, Search, AlertOctagon, Save, X } from 'lucide-react';
+import { formatCurrency, safeNumber } from '../utils/number';
 
 export default function History() {
     const [expenses, setExpenses] = useState([]);
@@ -19,11 +20,7 @@ export default function History() {
         end: new Date().toISOString().split('T')[0]
     });
 
-    useEffect(() => {
-        fetchHistory();
-    }, []);
-
-    const fetchHistory = async () => {
+    async function fetchHistory() {
         setLoading(true);
         try {
             const [expensesRes, categoriesRes] = await Promise.all([getExpenses(), getCategories()]);
@@ -35,7 +32,13 @@ export default function History() {
         } finally {
             setLoading(false);
         }
-    };
+    }
+
+    /* eslint-disable react-hooks/set-state-in-effect */
+    useEffect(() => {
+        fetchHistory();
+    }, []);
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     const handleDelete = async (id) => {
         console.log("Deleting expense with id:", id);
@@ -99,6 +102,10 @@ export default function History() {
         if (!editingExpenseId) return;
 
         try {
+            if (parseFloat(editForm.amount) > 100000000) {
+                alert('Amount must not exceed 100,000,000 (10 crore)');
+                return;
+            }
             await updateExpense(editingExpenseId, {
                 amount: parseFloat(editForm.amount),
                 description: editForm.description,
@@ -115,10 +122,6 @@ export default function History() {
         }
     };
 
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount);
-    };
-
     const filteredExpenses = expenses.filter(exp => {
         const expDate = new Date(exp.date).toISOString().split('T')[0];
         return expDate >= dateRange.start && expDate <= dateRange.end;
@@ -129,10 +132,8 @@ export default function History() {
     return (
         <div className="action-card" style={{ minHeight: '600px' }}>
 
-            {/* Header & Filters */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', flexWrap: 'wrap', gap: '20px' }}>
-
-                {/* Left Side: Title & Clear Button */}
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <div className="icon-wrapper" style={{ backgroundColor: '#f3e8ff', color: '#9333ea' }}>
@@ -140,24 +141,28 @@ export default function History() {
                         </div>
                         <h2 className="section-title" style={{ margin: 0, fontSize: '24px' }}>Transaction History</h2>
                     </div>
-
-                    {expenses.length > 0 && (
-                        <button
-                            onClick={handleClearAll}
-                            className="btn"
-                            style={{ backgroundColor: '#fef2f2', color: '#dc2626', border: '1px solid #fee2e2', width: 'auto', padding: '8px 16px', fontSize: '13px' }}
-                        >
-                            <AlertOctagon size={16} /> Clear All History
-                        </button>
-                    )}
                 </div>
 
-                {/* Right Side: Date Filters */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#f8fafc', padding: '10px 16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                    <Calendar size={18} color="#64748b" />
-                    <input type="date" className="nav-date" value={dateRange.start} onChange={e => setDateRange({...dateRange, start: e.target.value})} />
-                    <span style={{ color: '#64748b', fontSize: '14px' }}>to</span>
-                    <input type="date" className="nav-date" value={dateRange.end} onChange={e => setDateRange({...dateRange, end: e.target.value})} />
+                {expenses.length > 0 && (
+                    <button
+                        onClick={handleClearAll}
+                        className="btn"
+                        style={{ backgroundColor: '#fef2f2', color: '#dc2626', border: '1px solid #fee2e2', width: 'auto', padding: '8px 16px', fontSize: '13px' }}
+                    >
+                        <AlertOctagon size={16} /> Clear All History
+                    </button>
+                )}
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px', background: '#f8fafc', padding: '16px 18px', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '30px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>History from</span>
+                    <input type="date" className="nav-date" value={dateRange.start} onChange={e => setDateRange({ ...dateRange, start: e.target.value })} />
+                    <span style={{ color: '#475569', fontSize: '14px' }}>to</span>
+                    <input type="date" className="nav-date" value={dateRange.end} onChange={e => setDateRange({ ...dateRange, end: e.target.value })} />
+                </div>
+                <div style={{ color: '#475569', fontSize: '13px' }}>
+                    Showing transactions from <strong>{dateRange.start}</strong> to <strong>{dateRange.end}</strong>.
                 </div>
             </div>
 
@@ -179,6 +184,7 @@ export default function History() {
                                 type="number"
                                 step="0.01"
                                 value={editForm.amount}
+                                max={100000000}
                                 onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
                                 required
                             />

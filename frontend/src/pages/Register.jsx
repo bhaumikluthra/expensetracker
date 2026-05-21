@@ -21,6 +21,11 @@ export default function Register() {
       return;
     }
 
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return;
+    }
+
     setLoading(true);
     try {
       await register(email, password);
@@ -58,6 +63,7 @@ export default function Register() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
+              minLength={6}
               required
             />
           </label>
@@ -69,6 +75,7 @@ export default function Register() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="••••••••"
+              minLength={6}
               required
             />
           </label>

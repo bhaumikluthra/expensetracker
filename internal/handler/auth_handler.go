@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 	"personal-expense-tracker/internal/domain" // Replace with your actual project name
 	"personal-expense-tracker/internal/service"
 
@@ -21,7 +22,14 @@ func NewAuthHandler(db *gorm.DB) *AuthHandler {
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req domain.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		message := err.Error()
+		if strings.Contains(message, "Password") && strings.Contains(message, "min") {
+			message = "Password must be at least 6 characters long"
+		}
+		if strings.Contains(message, "Email") && strings.Contains(message, "email") {
+			message = "Enter a valid email address"
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": message})
 		return
 	}
 

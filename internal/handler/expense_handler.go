@@ -123,17 +123,6 @@ func (h *ExpenseHandler) CreateExpense(c *gin.Context) {
 		CategoryID:  input.CategoryID,
 	}
 
-	// Try to push to Kafka Queue; if unavailable, fall back to synchronous DB save
-	if h.kafkaProducer != nil {
-		if err := h.kafkaProducer.PublishExpenseImport(expense); err == nil {
-			c.JSON(http.StatusAccepted, gin.H{"message": "Expense queued for background processing"})
-			return
-		} else {
-			c.Error(err)
-		}
-	}
-
-	// Fallback: save synchronously to DB
 	created, err := h.service.CreateExpense(expense.UserID, expense.Amount, expense.Description, expense.Date, expense.CategoryID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
