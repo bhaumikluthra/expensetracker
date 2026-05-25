@@ -1,6 +1,40 @@
 services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: expense-tracker-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - DB_HOST=localhost  # Update if using separate DB container
+      - KAFKA_BROKER=kafka:9092
+    depends_on:
+      - kafka
+    networks:
+      - expense-tracker
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: expense-tracker-frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - expense-tracker
+
   kafka:
     image: apache/kafka:3.7.0
     container_name: kafka
     ports:
       - "9092:9092"
+    networks:
+      - expense-tracker
+
+networks:
+  expense-tracker:
+    driver: bridge
